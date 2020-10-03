@@ -1,0 +1,359 @@
+# Copyright 2019 MISHMASH I O OOD
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import inspect
+from datetime import datetime
+
+import mishmash_rpc_pb2
+
+from MishmashSet import MishmashSet
+from MishmashFunction import MishmashFunction
+from MishmashLiteral import MishmashLiteral
+import utils
+
+
+
+def to_decimal(arg):
+    # TODO ADD OTHER string_sequence, big_decimal
+
+    if isinstance(arg, int):
+        return mishmash_rpc_pb2.DecimalValue(s_int_64=arg)
+    elif isinstance(arg, float):
+        return mishmash_rpc_pb2.DecimalValue(floating=arg)
+
+
+def to_id(arg):
+    # todo what types can pass
+    return mishmash_rpc_pb2.Id(id=str(arg))
+
+
+def to_member(arg):
+    if isinstance(arg, int):
+        return mishmash_rpc_pb2.Member(index=arg)
+    elif isinstance(arg, str):
+        return mishmash_rpc_pb2.Member(name=arg)
+    else:
+        raise Exception("wrong member type for arg = ", arg, type(arg))
+
+
+def to_yield_member(arg, _id):
+    return mishmash_rpc_pb2.YieldMember(member=to_member(arg), instance_id=to_id(_id))
+
+
+def to_yield_value(arg, _id):
+    return mishmash_rpc_pb2.YieldValue(value=to_value(arg), instance_id=to_id(_id))
+
+
+def to_litearal(arg):
+    if isinstance(arg, mishmash_rpc_pb2.Id):
+        return mishmash_rpc_pb2.Literal(id=arg)
+
+    elif isinstance(arg, mishmash_rpc_pb2.Value):
+        return mishmash_rpc_pb2.Literal(value=arg)
+
+    else:
+        raise Exception("wrong member type for arg = ", arg, type(arg))
+
+
+def to_value(arg):
+    if isinstance(arg, int):
+        return mishmash_rpc_pb2.Value(decimal=to_decimal(arg))
+    elif isinstance(arg, bool):
+        return mishmash_rpc_pb2.Value(boolean=mishmash_rpc_pb2.BooleanValue(boolean=arg))
+    elif arg is None:
+        return mishmash_rpc_pb2.Value(null=mishmash_rpc_pb2.NullValue())
+    elif isinstance(arg, float):
+        return mishmash_rpc_pb2.Value(decimal=to_decimal(arg))
+    elif isinstance(arg, str):
+        return mishmash_rpc_pb2.Value(string=mishmash_rpc_pb2.StringValue(sequence=arg))
+    elif utils.isinstance_datetime(arg):
+        return mishmash_rpc_pb2.Value(date=mishmash_rpc_pb2.DateValue(iso8601=arg.isoformat()))
+
+    # TODO add buffer
+
+
+def to_function_body(arg):
+    return mishmash_rpc_pb2.LambdaFunctionBody(source=arg)
+
+
+def to_lambda_function_closure(arg):
+    l = []
+    for k, v in arg.parameters.items():
+        # TODO how to pass args
+        closure = mishmash_rpc_pb2.LambdaFunctionClosure()
+        closure.identifier = str(v)
+        l.append(closure)
+
+    return l
+
+
+def to_lambda_function(arg):
+    # TODO only body or whole function source ?
+    function_scope = to_lambda_function_closure(arg.clojure)
+    return mishmash_rpc_pb2.LambdaFunction(client_runtime=arg.client_runtime,
+                                           name=arg.name,
+                                           scope_id=arg.scope_id,
+                                           body=to_function_body(arg.body),
+                                           scope=function_scope)
+
+
+def to_set_descriptor_list(target_set):
+
+    def populate_set_descriptor_list(target_set, set_descriptors):
+        if isinstance(target_set, MishmashSet):
+
+            descriptor_list = set_descriptors.entries.add(intersection=mishmash_rpc_pb2.Intersection(
+                sets=mishmash_rpc_pb2.MishmashSetDescriptorList()))
+
+            if not target_set.get_def():
+                return descriptor_list
+
+            populate_set_descriptor_list(target_set.get_def(), descriptor_list.intersection.sets)
+
+        elif isinstance(target_set, list):
+
+            descriptor_list = set_descriptors.entries.add(union=mishmash_rpc_pb2.Union(
+                sets=mishmash_rpc_pb2.MishmashSetDescriptorList()))
+
+            for v in target_set:
+                populate_set_descriptor_list(v, descriptor_list.union.sets)
+
+        elif isinstance(target_set, MishmashFunction):
+
+            set_descriptors.entries.add(lambda_function=to_lambda_function(target_set))
+
+        elif isinstance(target_set, MishmashLiteral):
+
+            # TODO can we have id literal or we can have only value literal check proto file
+            set_descriptors.entries.add(literal=mishmash_rpc_pb2.Literal(value=to_value(target_set.get_literal())))
+
+        else:
+            raise Exception("wrong type passed to descriptor list", type(target_set))
+
+    descriptor_list = mishmash_rpc_pb2.MishmashSetDescriptorList()
+    populate_set_descriptor_list(target_set, descriptor_list)
+
+    return descriptor_list
+
+
+def to_setup_msg(base_set, client_options=None):
+
+    if not client_options:
+        client_options = {}
+
+    return mishmash_rpc_pb2.MishmashSetup(target_set=to_set_descriptor_list(base_set))
+
+
+def to_yield_data_ack():
+    return mishmash_rpc_pb2.YieldDataAck()
+
+
+def dummy_descriptor_list():
+    # TODO delete me
+    print("\n\n\n--------------USING DUMMY DESCRIPTOR LIST----------------- \n\n\n")
+    descriptor_list = mishmash_rpc_pb2.MishmashSetDescriptorList()
+    descriptor_list.entries.add(literal=mishmash_rpc_pb2.Literal(value=to_value("asdf")))
+    return descriptor_list
+
+
+def from_decimal(decimal):
+
+    if decimal.HasField("u_int_32"):
+        return int(decimal.u_int_32)
+    elif decimal.HasField("s_int_32"):
+        return int(decimal.s_int_32)
+    elif decimal.HasField("u_int_64"):
+        return int(decimal.u_int_64)
+    elif decimal.HasField("s_int_64"):
+        return int(decimal.s_int_64)
+    elif decimal.HasField("floating"):
+        return float(decimal.floating)
+    elif decimal.HasField("string_sequence"):
+        raise Exception("string_sequence not implemented yet")
+    elif decimal.HasField("big_decimal"):
+        raise Exception("big_decimal not implemented yet")
+    else:
+        raise Exception("wrong decimal value")
+
+
+def from_string(string):
+    return string.sequence
+
+
+def from_boolean(boolean):
+    return boolean.boolean
+
+
+def from_value(value):
+
+    if value.HasField("boolean"):
+        return from_boolean(value.boolean)
+    elif value.HasField("decimal"):
+        return from_decimal(value.decimal)
+    elif value.HasField("string"):
+        return from_string(value.string)
+    elif value.HasField("date"):
+        return datetime.strptime(value.date.iso8601, "%Y-%m-%dT%H:%M:%S%z")
+    elif value.HasField("buffer"):
+        raise Exception("get buffer not implemented yet")
+    elif value.HasField("null"):
+        return None
+    else:
+        raise Exception("wrong value = {} with type = {}".format(value, type(value)))
+
+
+def from_litearal(arg):
+    if arg.HasField("id"):
+        return from_id(arg.id)
+    elif arg.HasField("value"):
+        return from_value(arg.value)
+
+    else:
+        raise Exception("wrong member type for arg = ", arg, type(arg))
+
+
+def from_id(_id):
+    return _id.id
+
+
+def from_yield_value(yield_value):
+    return from_id(yield_value.instance_id), from_value(yield_value.value)
+
+
+def from_yield_data(yield_data):
+
+    instance_id, value = from_yield_value(yield_data.yield_data.value)
+
+    return yield_data.yield_data.hierarchy, value
+
+
+def get_key_from_member(member):
+    if member.HasField("index"):
+        return int(member.index)
+    elif member.HasField("name"):
+        return member.name
+
+
+def get_container_for_next_element(member):
+    if member.HasField("index"):
+        return []
+    elif member.HasField("name"):
+        return {}
+
+
+def process_yield_data_message(hierarchy, value, results):
+
+    key = get_key_from_member(hierarchy[0].member)
+
+    if len(hierarchy) > 1:
+
+        next_element_container = get_container_for_next_element(hierarchy[1].member)
+
+        if hierarchy[0].member.HasField("index"):
+            if len(results) <= key:
+                results.append(next_element_container)
+        else:
+            if not key in results:
+                results[key] = next_element_container
+
+        process_yield_data_message(hierarchy[1:], value, results[key])
+
+    else:
+        results[key] = value
+
+
+def to_yield_data(y, cnt):
+
+    def flatten(x, name=[]):
+        if type(x) is dict:
+            for a in x:
+                cnt[a] += 1
+                yield from flatten(x[a], name + [to_yield_member(a, cnt[a])])
+        elif isinstance(x, (list, tuple)):
+            for a, v in enumerate(x):
+                cnt[a] += 1
+                yield from flatten(v, name + [to_yield_member(a, cnt[a])])
+        else:
+            cnt[x] += 1
+            yield mishmash_rpc_pb2.YieldData(hierarchy=name, value=to_yield_value(x, cnt[x]))
+
+    yield from flatten(y)
+
+
+def from_setup_msg(setup_msg):
+    # TODO
+    result_set = []
+
+    if isinstance(setup_msg, mishmash_rpc_pb2.MishmashSetDescriptorList):
+        for i in setup_msg.entries:
+            result_set.append(from_setup_msg(i))
+    elif isinstance(setup_msg, mishmash_rpc_pb2.MishmashSetDescriptor):
+
+        if setup_msg.HasField("intersection"):
+
+            result_set = MishmashSet()
+            result_set._MishmashSet__def.append(from_setup_msg(setup_msg.intersection.sets))
+
+        elif setup_msg.HasField("union"):
+            result_set = from_setup_msg(setup_msg.union.sets)
+            # result_set.append()
+        elif setup_msg.HasField("literal"):
+            result_set = MishmashLiteral(from_litearal(setup_msg.literal))
+
+    return result_set
+
+
+def get_srv_stream_message_type(reply):
+
+    if reply.HasField("yield_data"):
+        return "yield_data"
+    elif reply.HasField("setup_ack"):
+        return "setup_ack"
+    elif reply.HasField("error"):
+        return "error"
+    elif reply.HasField("invoke"):
+        return "invoke"
+    elif reply.HasField("output"):
+        return "output"
+    elif reply.HasField("debug"):
+        return "debug"
+    else:
+        raise Exception("no such type", reply)
+
+
+def get_srv_mutation_message_type(reply):
+
+    if reply.HasField("ack"):
+        return "ack"
+    elif reply.HasField("setup_ack"):
+        return "setup_ack"
+    elif reply.HasField("error"):
+        return "error"
+    else:
+        raise Exception("no such type", reply)
+
+
+def to_error_msg(error):
+
+    error_msg = "\n\terror_code = {}\n\tmessage = {}".format(error.error.error_code, error.error.message)
+    try:
+        additional_info_msg = ""
+        for i in error.error.additional_info:
+            additional_info_msg += "\n\t{}".format(i)
+        if additional_info_msg:
+            error_msg += additional_info_msg
+    except:
+        pass
+
+    return error_msg
