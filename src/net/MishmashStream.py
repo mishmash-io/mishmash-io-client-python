@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from async_timeout import timeout
-import pprint
 from collections import defaultdict
 
 import mishmash_rpc_pb2
@@ -51,8 +50,8 @@ class MishmashStream():
 
                     if recv_msg:
 
-                        msg_type = MishmashMessages.get_srv_stream_message_type(recv_msg)
-
+                        msg_type = MishmashMessages.get_srv_stream_message_type(
+                            recv_msg)
                         if not has_send_setup_msg:
                             if msg_type == "setup_ack":
                                 has_send_setup_msg = True
@@ -106,7 +105,8 @@ class MishmashStream():
                 else:
                     self.results = {}
 
-            MishmashMessages.process_yield_data_message(hierarchy[1:], value, self.results)
+            MishmashMessages.process_yield_data_message(
+                hierarchy[1:], value, self.results)
 
         await stream.send_message(mishmash_rpc_pb2.StreamClientMessage(
             client_seq_no=self.client_sequence_number, ack=MishmashMessages.to_yield_data_ack()))
@@ -115,7 +115,8 @@ class MishmashStream():
 
     async def process_error_message(self, stream, recv_msg):
         # TODO add exception type from remote srv
-        raise MishmashStreamErrorException(MishmashMessages.to_error_msg(recv_msg))
+        raise MishmashStreamErrorException(
+            MishmashMessages.to_error_msg(recv_msg))
 
     async def process_invoke_message(self, stream, recv_msg):
         raise Exception("process invoke msg not implemented yet")

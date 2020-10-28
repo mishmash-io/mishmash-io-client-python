@@ -22,8 +22,13 @@ import mishmash_rpc_grpc
 from net.MishmashConnectionParameters import MishmashConnectionParameters
 
 
-async def on_send_request(event):
+async def on_send_request(event, options):
+
     request_id = event.metadata['x-mishmash-app-id'] = str(uuid.uuid4())
+
+    event.metadata['authorization'] = "Bearer {}".format(
+        options.get_auth_app_id())
+
     print(f'Generated Request ID: {request_id}')
 
 
@@ -41,8 +46,9 @@ class ConnectionFactory():
         return ConnectionFactory.__stub
 
     @staticmethod
-    # TODO when i try to create another mishmash it raise ChannelAlreadyCreatedException???
     def set_connection(options):
+        # TODO when i try to create another mishmash it raise ChannelAlreadyCreatedException???
+
         if not isinstance(options, MishmashConnectionParameters):
             raise Exception("wrong connection parameters type")
 
@@ -54,19 +60,22 @@ class ConnectionFactory():
         if ConnectionFactory.__stub:
             raise ChannelHasNotBeenCreatedException
 
+        if not options.has_ssl_certificates():
 
-        if not options.is_secure():
+            ConnectionFactory.__channel = Channel(
+                options.get_url(), options.get_port(), ssl=options.get_use_ssl())
 
-            ConnectionFactory.__channel = Channel(options.url, options.port)
             ConnectionFactory.__stub = mishmash_rpc_grpc.MishmashServiceStub(
                 ConnectionFactory.__channel)
-            listen(ConnectionFactory.__channel, SendRequest, on_send_request)
+            
+            listen(ConnectionFactory.__channel, SendRequest, lambda event,
+                   options=options: on_send_request(event, options))
         else:
             raise Exception("not implementet yet secure connection type")
 
     @staticmethod
     def close_channel():
-        raise Exception("not implementet yet secure close_channel type")
+        raise Exception("not implementet yet close_channel type")
 
 
 class ChannelAlreadyCreatedException(Exception):

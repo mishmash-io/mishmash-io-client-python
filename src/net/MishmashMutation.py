@@ -51,13 +51,14 @@ class MishmashMutation():
                         client_seq_no=self.client_sequence_number, setup=MishmashMessages.to_setup_msg(base_set)))
                     new_connection = False
                     self.client_sequence_number += 1
-         
+
                 async with timeout(utils.RECV_TIMEOUT):
 
                     recv_msg = await mutation.recv_message()
-                
+
                     if recv_msg:
-                        msg_type = MishmashMessages.get_srv_mutation_message_type(recv_msg)
+                        msg_type = MishmashMessages.get_srv_mutation_message_type(
+                            recv_msg)
 
                         if not has_send_setup_msg:
                             if msg_type == "setup_ack":
@@ -70,19 +71,19 @@ class MishmashMutation():
 
                     try:
                         next_msg = next(yield_data_msgs)
-                   
+
                         await mutation.send_message(mishmash_rpc_pb2.MutationClientMessage(client_seq_no=self.client_sequence_number, yield_data=next_msg))
                         self.client_sequence_number += 1
-                   
+
                     except StopIteration:
-                        # recv_msg = await mutation.recv_message()
-                        # print(recv_msg)
+                        # recv_msg = await mutation.recv_message() 
                         await mutation.end()
                         break
-                    
+
         async def process_error_message(self, stream, recv_msg):
             # TODO add exception type from remote srv
-            raise MishmashMutationErrorException(MishmashMessages.to_error_msg(recv_msg))
+            raise MishmashMutationErrorException(
+                MishmashMessages.to_error_msg(recv_msg))
 
 
 class MishmashMutationErrorException(Exception):

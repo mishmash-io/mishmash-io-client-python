@@ -36,6 +36,7 @@ class Mishmash():
             self._set = MishmashSet()
             self.connection_parameters = MishmashConnectionParameters(config)
             self.is_async = is_async
+
             self.loop = loop
             ConnectionFactory.set_connection(self.connection_parameters)
 
@@ -43,11 +44,12 @@ class Mishmash():
         return len(self._set)
 
     def __getitem__(self, name):
-       
+
         new_mishmash = self.__intersection(name)
 
         if self.is_async:
-            raise MishmashNotImplementedYetException("not implemented async logic")
+            raise MishmashNotImplementedYetException(
+                "not implemented async logic")
 
         return new_mishmash
 
@@ -64,7 +66,6 @@ class Mishmash():
 
     def __getattr__(self, name):
 
-        
         if name in ATTR:
             return super().__getattribute__(name)
 
@@ -72,7 +73,7 @@ class Mishmash():
 
     def __setattr__(self, name, value):
         # TODO think for  smarter way to avoid recursion
- 
+
         if name in ATTR:
             super().__setattr__(name, value)
         else:
@@ -144,13 +145,18 @@ class Mishmash():
     def __download(self):
         stream = MishmashStream()
 
-        s = stream.stream(self._set)
-        loop = asyncio.get_event_loop()
+        stream_generator = stream.stream(self._set)
+
+        if not self.loop:
+            self.loop = asyncio.get_event_loop()
 
         while True:
             try:
-                yield loop.run_until_complete(s.__anext__())
+                yield self.loop.run_until_complete(stream_generator.__anext__())
             except StopAsyncIteration:
+                break
+            except asyncio.TimeoutError:
+                # how to stop iterations ???
                 break
 
     def __upload(self, base_set, *values):
@@ -164,6 +170,6 @@ class Mishmash():
 
         try:
             self.loop.run_until_complete(m)
-        
+
         except Exception as e:
             print(e)
