@@ -24,6 +24,7 @@ from MishmashExceptions import MishmashNotImplementedYetException
 import utils
 import Mishmash
 
+
 class MishmashSetIntersectionWithUnknownException(Exception):
     pass
 
@@ -37,10 +38,7 @@ class MishmashSetWrongKeyException(Exception):
 
 
 class MishmashSet():
-    # TODO refactor set using copy / deep copy think for other alternative because deepcopy is very slow
-    # TODO add other 'magic' methods? https://rszalski.github.io/magicmethods/
-    # TODO add function and mishmash set to to/from dict 
-
+   
     SERIALIZATION_PARAMETER_NAME = 's'
 
     def __init__(self):
@@ -53,7 +51,7 @@ class MishmashSet():
         return str(self.__def)
 
     def __repr__(self):
-        #TODO think for different repr 
+        # TODO think for different repr
         return str(self.__def)
 
     def __bool__(self):
@@ -185,7 +183,7 @@ class MishmashSet():
                 new_set = new_set.__intersect_bytearray(arg)
             elif isinstance(arg, memoryview):
                 new_set = new_set.__intersect_memoryview(arg)
-            elif isinstance(arg, Mishmash.Mishmash) or isinstance(arg, MishmashSet):  # TODO is it ok to have
+            elif isinstance(arg, Mishmash.Mishmash) or isinstance(arg, MishmashSet):
                 new_set = new_set.__intersect_mishmash_object(arg)
             elif utils.isinstance_datetime(arg):
                 new_set = new_set.__intersect_datetime(arg)
@@ -318,7 +316,8 @@ class MishmashSet():
         raise MishmashNotImplementedYetException("intersect with lambda")
 
     def __intersect_unknown(self, v):
-        raise MishmashSetIntersectionWithUnknownException("cannot intersect with type {}".format(type(v)))
+        raise MishmashSetIntersectionWithUnknownException(
+            "cannot intersect with type {}".format(type(v)))
 
     def __union_boolean(self, v):
         return self.__add(MishmashLiteral.boolean(v))
@@ -336,7 +335,8 @@ class MishmashSet():
         return self.__add(MishmashLiteral.null())
 
     def __union_unknown(self, v):
-        raise MishmashSetUnionWithUnknownException("cannot union with type {}".format(type(v)))
+        raise MishmashSetUnionWithUnknownException(
+            "cannot union with type {}".format(type(v)))
 
     def __union_sequence(self, v):
 
@@ -417,7 +417,8 @@ class MishmashSet():
             if isinstance(target_set, MishmashSet):
 
                 descriptors.append({self.SERIALIZATION_PARAMETER_NAME: []})
-                populate_set_descriptors(target_set.get_def(), descriptors[-1][self.SERIALIZATION_PARAMETER_NAME])
+                populate_set_descriptors(target_set.get_def(
+                ), descriptors[-1][self.SERIALIZATION_PARAMETER_NAME])
 
             elif isinstance(target_set, list):
 
@@ -429,7 +430,8 @@ class MishmashSet():
             elif isinstance(target_set, MishmashLiteral):
                 descriptors.append(target_set.to_dict())
             else:
-                raise Exception("wrong type passed to descriptor list", type(target_set))
+                raise Exception(
+                    "wrong type passed to descriptor list", type(target_set))
 
         descriptors = []
         populate_set_descriptors(self.get_def(), descriptors)
@@ -448,7 +450,8 @@ class MishmashSet():
                     return MishmashSet()
 
                 result_set = MishmashSet()
-                result_set.__def.append(cls.from_dict(dict_set[cls.SERIALIZATION_PARAMETER_NAME]))
+                result_set.__def.append(cls.from_dict(
+                    dict_set[cls.SERIALIZATION_PARAMETER_NAME]))
             elif key == "u":
                 result_set = MishmashLiteral.from_dict(dict_set)
         elif isinstance(dict_set, list):

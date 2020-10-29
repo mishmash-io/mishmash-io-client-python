@@ -29,11 +29,12 @@ class MishmashFunction():
         self.client_runtime = "Python {}".format(platform.python_version())
         self.scope_id = "not implemeted"
         self.clojure = inspect.signature(function_object)
-        
+
     def __repr__(self):
         return '{}({})'.format(self.__class__.__name__, self.body)
 
     def to_dict(self):
-        serialized_json = {self.SERIALIZATION_PARAMETER_NAME: [self.name, self.body]}
+        serialized_json = {
+            self.SERIALIZATION_PARAMETER_NAME: [self.name, self.body]}
 
         return serialized_json

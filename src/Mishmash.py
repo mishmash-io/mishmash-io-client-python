@@ -27,23 +27,20 @@ ATTR = ["_set", "loop", "connection_parameters", "is_async"]
 
 
 class Mishmash():
+    def __init__(self, is_async=False, loop=None):
 
-    # TODO logical operations over sets
+        self._set = MishmashSet()
+        self.is_async = is_async
+        self.loop = loop
 
-    def __init__(self, config=None, is_async=False, loop=None):
-
-        if config:
-            self._set = MishmashSet()
-            self.connection_parameters = MishmashConnectionParameters(config)
-            self.is_async = is_async
-            self.loop = loop
-            ConnectionFactory.set_connection(self.connection_parameters)
+        self.connection_parameters = MishmashConnectionParameters()
+        ConnectionFactory.set_connection(self.connection_parameters)
 
     def __len__(self):
         return len(self._set)
 
     def __getitem__(self, name):
-       
+
         new_mishmash = self.__intersection(name)
 
         if self.is_async:
@@ -52,7 +49,10 @@ class Mishmash():
         return new_mishmash
 
     def __eq__(self, s):
-        raise MishmashNotImplementedYetException("not implemented async logic")
+        raise MishmashNotImplementedYetException("not implemented __eq__ logic")
+    
+    def __del__(self): 
+        ConnectionFactory.close_channel()
 
     def __setitem__(self, name, value):
         base_set = self._set
@@ -64,16 +64,15 @@ class Mishmash():
 
     def __getattr__(self, name):
 
-        
         if name in ATTR:
             return super().__getattribute__(name)
 
         return self.__getitem__(name)
 
     def __setattr__(self, name, value):
-        # TODO think for  smarter way to avoid recursion
- 
+
         if name in ATTR:
+            # TODO smarter way to avoid recursion ??
             super().__setattr__(name, value)
         else:
             self.__setitem__(name, value)
@@ -94,8 +93,8 @@ class Mishmash():
             yield i
 
     def new_mishmash(self, new_set):
-        # // return new 'child' Mishmash object, inheriting all settings from $this
-        # TODO more pytonic way to copy params
+        # return new 'child' Mishmash object, inheriting all settings from $this
+       
         res = self.__class__()
         res._set = new_set
         res.is_async = self.is_async
@@ -105,9 +104,8 @@ class Mishmash():
         return res
 
     def args_for_set(self, *args):
-        # TODO Add named args to args for set ?#
-
         # transform user arguments into MishmashSet values
+
         tranformed_arg = []
         for arg in args:
             # if self.is_scalar_mishmash(arg):
@@ -121,40 +119,40 @@ class Mishmash():
         return tranformed_arg
 
     def __union(self, *offset):
-        # // return a 'united' set
+        # return a 'united' set
         return self.new_mishmash(self._set.subset().union(*self.args_for_set(*offset)))
 
     def __intersection(self, *offset):
-        # // return a subset
+        # return a subset
         return self.new_mishmash(self._set.intersection(*self.args_for_set(*offset)))
 
     def __sync_download(self, stream):
         pass
 
     async def __async_download(self, stream):
+        raise MishmashNotImplementedYetException("not implemented async logic")
 
-        # async for i in stream.stream(self._set):
-        #     s = await i
-        #     pprint.pprint(s)
-        return await stream.stream(self._set)
-
-    def __anext__():
+    def __anext__(self):
         raise MishmashNotImplementedYetException("not implemented async next")
 
     def __download(self):
-        stream = MishmashStream()
+        stream = MishmashStream(self._set)
+        stream_generator = stream.run()
 
-        s = stream.stream(self._set)
-        loop = asyncio.get_event_loop()
+        if not self.loop:
+            self.loop = asyncio.get_event_loop()
 
         while True:
             try:
-                yield loop.run_until_complete(s.__anext__())
+                yield self.loop.run_until_complete(stream_generator.__anext__())
             except StopAsyncIteration:
+                # close chanel ??
+                break
+            except asyncio.TimeoutError:
                 break
 
     def __upload(self, base_set, *values):
-        # TODO use kwargs args ?
+        # TODO use kwargs args 
         mutation = MishmashMutation()
 
         m = mutation.mutate(base_set, *values)
@@ -164,6 +162,6 @@ class Mishmash():
 
         try:
             self.loop.run_until_complete(m)
-        
+
         except Exception as e:
             print(e)
