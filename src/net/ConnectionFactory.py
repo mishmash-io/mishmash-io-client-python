@@ -22,9 +22,6 @@ import mishmash_rpc_grpc
 from net.MishmashConnectionParameters import MishmashConnectionParameters
 
 
-async def on_send_request(event):
-    request_id = event.metadata['x-mishmash-app-id'] = str(uuid.uuid4())
-    print(f'Generated Request ID: {request_id}')
 
 
 class ConnectionFactory():
@@ -34,39 +31,48 @@ class ConnectionFactory():
 
     @staticmethod
     def get_stream():
-        return ConnectionFactory.__stub
+        return ConnectionFactory.__stub.stream.open() 
 
     @staticmethod
     def get_mutation():
         return ConnectionFactory.__stub
 
     @staticmethod
-    # TODO when i try to create another mishmash it raise ChannelAlreadyCreatedException???
+    async def __on_send_request(event, options):
+
+        event.metadata['x-mishmash-app-id'] = str(uuid.uuid4())
+        event.metadata['authorization'] = "Bearer {}".format(
+            options.get_auth_app_id())
+            
+    @staticmethod
     def set_connection(options):
+
         if not isinstance(options, MishmashConnectionParameters):
             raise Exception("wrong connection parameters type")
 
         if ConnectionFactory.__channel:
-            print("ChannelAlreadyCreatedException")
-            return  # TODO HOW TO use this singleton
-            raise ChannelAlreadyCreatedException
+            return ConnectionFactory.__channel
+        else:
+            ConnectionFactory.__channel = Channel(options.get_url(), 
+                                                  options.get_port(), 
+                                                  ssl=options.get_use_ssl())
 
         if ConnectionFactory.__stub:
             raise ChannelHasNotBeenCreatedException
 
 
-        if not options.is_secure():
+        ConnectionFactory.__stub = mishmash_rpc_grpc.MishmashServiceStub(ConnectionFactory.__channel)
 
-            ConnectionFactory.__channel = Channel(options.url, options.port)
-            ConnectionFactory.__stub = mishmash_rpc_grpc.MishmashServiceStub(
-                ConnectionFactory.__channel)
-            listen(ConnectionFactory.__channel, SendRequest, on_send_request)
-        else:
-            raise Exception("not implementet yet secure connection type")
+        listen(ConnectionFactory.__channel, 
+               SendRequest, 
+               lambda event, options = options: ConnectionFactory.__on_send_request(event, options))
 
     @staticmethod
     def close_channel():
-        raise Exception("not implementet yet secure close_channel type")
+        if ConnectionFactory.__channel:
+            ConnectionFactory.__channel.close()
+            ConnectionFactory.__channel = None
+        
 
 
 class ChannelAlreadyCreatedException(Exception):

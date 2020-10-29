@@ -22,8 +22,6 @@ class MishmashLiteralDeserializeException(Exception):
 
 
 class MishmashLiteral(object):
-    # TODO do i need param set for op type
-    # TODO add other 'magic' methods? https://rszalski.github.io/magicmethods/
     TYPE_OP = 'o'
     TYPE_UNKNOWN = "u"
     LITERAL_TYPES = [TYPE_OP, TYPE_UNKNOWN]

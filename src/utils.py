@@ -14,10 +14,7 @@
 
 import datetime
 
-
-from collections import defaultdict
 RECV_TIMEOUT = 2
-
 
 def isinstance_datetime(arg):
     # todo add other date time types
@@ -27,11 +24,3 @@ def isinstance_datetime(arg):
         return True
     else:
         return False
-
-
-def tree():
-    return defaultdict(tree)
-
-
-def isinstance_named_tuple(arg):
-    pass

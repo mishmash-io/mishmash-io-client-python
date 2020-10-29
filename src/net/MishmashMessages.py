@@ -23,7 +23,6 @@ from MishmashLiteral import MishmashLiteral
 import utils
 
 
-
 def to_decimal(arg):
     # TODO ADD OTHER string_sequence, big_decimal
 
@@ -119,7 +118,8 @@ def to_set_descriptor_list(target_set):
             if not target_set.get_def():
                 return descriptor_list
 
-            populate_set_descriptor_list(target_set.get_def(), descriptor_list.intersection.sets)
+            populate_set_descriptor_list(
+                target_set.get_def(), descriptor_list.intersection.sets)
 
         elif isinstance(target_set, list):
 
@@ -131,15 +131,18 @@ def to_set_descriptor_list(target_set):
 
         elif isinstance(target_set, MishmashFunction):
 
-            set_descriptors.entries.add(lambda_function=to_lambda_function(target_set))
+            set_descriptors.entries.add(
+                lambda_function=to_lambda_function(target_set))
 
         elif isinstance(target_set, MishmashLiteral):
 
             # TODO can we have id literal or we can have only value literal check proto file
-            set_descriptors.entries.add(literal=mishmash_rpc_pb2.Literal(value=to_value(target_set.get_literal())))
+            set_descriptors.entries.add(literal=mishmash_rpc_pb2.Literal(
+                value=to_value(target_set.get_literal())))
 
         else:
-            raise Exception("wrong type passed to descriptor list", type(target_set))
+            raise Exception(
+                "wrong type passed to descriptor list", type(target_set))
 
     descriptor_list = mishmash_rpc_pb2.MishmashSetDescriptorList()
     populate_set_descriptor_list(target_set, descriptor_list)
@@ -147,23 +150,31 @@ def to_set_descriptor_list(target_set):
     return descriptor_list
 
 
-def to_setup_msg(base_set, client_options=None):
 
+def to_setup_msg(client_seq_no, base_set, client_options=None):
     if not client_options:
         client_options = {}
+    return mishmash_rpc_pb2.StreamClientMessage(
+                        client_seq_no=client_seq_no, 
+                        setup=mishmash_rpc_pb2.MishmashSetup(target_set=to_set_descriptor_list(base_set)))
 
-    return mishmash_rpc_pb2.MishmashSetup(target_set=to_set_descriptor_list(base_set))
+
+    
 
 
-def to_yield_data_ack():
-    return mishmash_rpc_pb2.YieldDataAck()
+def to_yield_data_ack(client_seq_no):
+
+    return  mishmash_rpc_pb2.StreamClientMessage(
+            client_seq_no=client_seq_no, ack=mishmash_rpc_pb2.YieldDataAck())
+
 
 
 def dummy_descriptor_list():
     # TODO delete me
     print("\n\n\n--------------USING DUMMY DESCRIPTOR LIST----------------- \n\n\n")
     descriptor_list = mishmash_rpc_pb2.MishmashSetDescriptorList()
-    descriptor_list.entries.add(literal=mishmash_rpc_pb2.Literal(value=to_value("asdf")))
+    descriptor_list.entries.add(
+        literal=mishmash_rpc_pb2.Literal(value=to_value("asdf")))
     return descriptor_list
 
 
@@ -196,7 +207,6 @@ def from_boolean(boolean):
 
 
 def from_value(value):
-
     if value.HasField("boolean"):
         return from_boolean(value.boolean)
     elif value.HasField("decimal"):
@@ -210,7 +220,8 @@ def from_value(value):
     elif value.HasField("null"):
         return None
     else:
-        raise Exception("wrong value = {} with type = {}".format(value, type(value)))
+        raise Exception(
+            "wrong value = {} with type = {}".format(value, type(value)))
 
 
 def from_litearal(arg):
@@ -258,7 +269,8 @@ def process_yield_data_message(hierarchy, value, results):
 
     if len(hierarchy) > 1:
 
-        next_element_container = get_container_for_next_element(hierarchy[1].member)
+        next_element_container = get_container_for_next_element(
+            hierarchy[1].member)
 
         if hierarchy[0].member.HasField("index"):
             if len(results) <= key:
@@ -303,7 +315,8 @@ def from_setup_msg(setup_msg):
         if setup_msg.HasField("intersection"):
 
             result_set = MishmashSet()
-            result_set._MishmashSet__def.append(from_setup_msg(setup_msg.intersection.sets))
+            result_set._MishmashSet__def.append(
+                from_setup_msg(setup_msg.intersection.sets))
 
         elif setup_msg.HasField("union"):
             result_set = from_setup_msg(setup_msg.union.sets)
@@ -312,7 +325,6 @@ def from_setup_msg(setup_msg):
             result_set = MishmashLiteral(from_litearal(setup_msg.literal))
 
     return result_set
-
 
 def get_srv_stream_message_type(reply):
 
@@ -346,7 +358,8 @@ def get_srv_mutation_message_type(reply):
 
 def to_error_msg(error):
 
-    error_msg = "\n\terror_code = {}\n\tmessage = {}".format(error.error.error_code, error.error.message)
+    error_msg = "\n\terror_code = {}\n\tmessage = {}".format(
+        error.error.error_code, error.error.message)
     try:
         additional_info_msg = ""
         for i in error.error.additional_info:
