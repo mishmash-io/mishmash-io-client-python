@@ -15,7 +15,7 @@
 import os
 import json
 
-
+from utils import str_to_bool
 class MishmashConnectionParameters():
     DEFAULT_SSL_PORT = 443
     DEFAULT_PORT = 80
@@ -34,8 +34,8 @@ class MishmashConnectionParameters():
         try:
             self.__auth_method = connection_parameters["MISHMASHIO_AUTH_METHOD"]
             self.__auth_app_id = connection_parameters["MISHMASHIO_AUTH_APP_ID"]
-            self.__servers = connection_parameters["MISHMASHIO_SERVERS"]
-            self.__use_ssl = connection_parameters["MISHMASHIO_USE_SSL"]
+            self.__server_addresses = self.parse_server_list(connection_parameters["MISHMASHIO_SERVERS"])
+            self.__use_ssl = str_to_bool(connection_parameters["MISHMASHIO_USE_SSL"])
             self.__raw_connection_parameters = connection_parameters
 
         except KeyError as e:
@@ -57,7 +57,7 @@ class MishmashConnectionParameters():
                 config = self.parse_env_vars()
             except:
                 raise Exception("no valid configuration")
-
+        
         return config
 
     def parse_env_vars(self):
@@ -66,15 +66,15 @@ class MishmashConnectionParameters():
             v = env_vars.get(name, None)
             if not v:
                 raise Exception("missing config variable {}".format(name))
-
+          
             return v
 
         config = {
             "MISHMASHIO_AUTH_METHOD": get_var_with_exception(os.environ, "MISHMASHIO_AUTH_METHOD"),
             "MISHMASHIO_AUTH_APP_ID": get_var_with_exception(os.environ, "MISHMASHIO_AUTH_APP_ID"),
             "MISHMASHIO_SERVERS": get_var_with_exception(os.environ, "MISHMASHIO_SERVERS"),
-            "MISHMASHIO_USE_SSL": get_var_with_exception(os.environ, "MISHMASHIO_USE_SSL"),
-        }
+            "MISHMASHIO_USE_SSL": get_var_with_exception(os.environ, "MISHMASHIO_USE_SSL")
+            }
 
         return config
 
@@ -82,23 +82,25 @@ class MishmashConnectionParameters():
         with open(os.path.join(path, name), "r") as config_file:
             return json.load(config_file)
 
-    def parse_server(self, server):
+    def parse_server_list(self, server_list):
 
-        split = server.split(":")
-        try:
-            url, port = split
-        except ValueError:
-            url = split[0]
-            if self.get_use_ssl():
-                port = self.DEFAULT_SSL_PORT
-            else:
-                port = self.DEFAULT_PORT
+        server_addresses = []
+        for server in server_list:
+            url_and_port = server.split(":")
+            try:
+                url, port = url_and_port
+            except ValueError:
+                url = url_and_port[0]
+                if self.get_use_ssl():
+                    port = self.DEFAULT_SSL_PORT
+                else:
+                    port = self.DEFAULT_PORT
+            server_addresses.append((url, port))
 
-        return url, port
+        return server_addresses
 
     def get_url(self):
-        # TODO use server list
-        return self.parse_server(self.__servers)[0]
+        return self.__server_addresses[0][0]
 
     def get_auth_method(self):
         return self.__auth_method
@@ -107,7 +109,7 @@ class MishmashConnectionParameters():
         return self.__auth_app_id
 
     def get_port(self):
-        return int(self.parse_server(self.__servers)[1])
+        return int(self.__server_addresses[0][1])
 
     def get_use_ssl(self):
         return self.__use_ssl

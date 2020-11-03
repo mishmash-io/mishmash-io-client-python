@@ -24,3 +24,11 @@ def isinstance_datetime(arg):
         return True
     else:
         return False
+def str_to_bool(str_val):
+    if isinstance(str_val, bool):
+        return str_val
+
+    if str_val == "true" or str_val == "True":
+        return True
+    elif str_val == "false" or str_val == "False":
+        return False
