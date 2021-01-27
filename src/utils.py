@@ -24,11 +24,43 @@ def isinstance_datetime(arg):
         return True
     else:
         return False
+
+def str_to_bool(str_val):
+    print("-----\n\n")
+    if isinstance(str_val, bool):
+        return str_val
+    
+    if isinstance(str_val, str):
+        str_val = str_val.lower().capitalize()
+    
+    try :
+        return eval(str_val)
+    except Exception as e:
+        print(e)
+
+    return str_val
+
+class InvalidBooleanValueException(Exception):
+    pass
+
+class MissingConfigurationVariableException(Exception):
+    pass
+
+def value_or_exception(value):
+    if value:
+        return value
+    raise MissingConfigurationVariableException()
+
 def str_to_bool(str_val):
     if isinstance(str_val, bool):
         return str_val
 
-    if str_val == "true" or str_val == "True":
-        return True
-    elif str_val == "false" or str_val == "False":
-        return False
+    if isinstance(str_val, str):
+        str_val = str_val.lower().capitalize()
+
+        if str_val == "True":
+            return True
+        elif str_val == "False":
+            return False
+        else:
+            raise InvalidBooleanValueException() from None

@@ -33,46 +33,47 @@ class ConnectionFactory():
     def get_stream():
         return ConnectionFactory.__stub.stream.open() 
 
-    @staticmethod
-    def get_mutation():
-        return ConnectionFactory.__stub
-
+    #Todo add get mutation
+    
     @staticmethod
     async def __on_send_request(event, options):
 
-        event.metadata['x-mishmash-app-id'] = str(uuid.uuid4())
+        event.metadata['x-mishmash-app-id'] = str(uuid.uuid4()) # todo аpp id == MISHMASHIO_AUTH_APP_ID ?
         event.metadata['authorization'] = "Bearer {}".format(
             options.get_auth_app_id())
             
     @staticmethod
-    def set_connection(options):
-
-        if not isinstance(options, MishmashConnectionParameters):
-            raise Exception("wrong connection parameters type")
+    def set_connection(connection_parameters):
 
         if ConnectionFactory.__channel:
             return ConnectionFactory.__channel
-        else:
-            ConnectionFactory.__channel = Channel(options.get_url(), 
-                                                  options.get_port(), 
-                                                  ssl=options.get_use_ssl())
+
+        if not isinstance(connection_parameters, MishmashConnectionParameters):
+            raise WrongConnectionParametersTypeException(" type of connection parameters is {}, it must be MishmashConnectionParameters".format(type(connection_parameters)))
+
+        ConnectionFactory.__channel = Channel(connection_parameters.get_url(), 
+                                              connection_parameters.get_port(), 
+                                              ssl=connection_parameters.get_use_ssl())
+        
+        # todo add ssl
+        # todo add authentication methods
 
         if ConnectionFactory.__stub:
-            raise ChannelHasNotBeenCreatedException
-
+            # do i need this check
+            raise StubAlreadyCreatedException()
 
         ConnectionFactory.__stub = mishmash_rpc_grpc.MishmashServiceStub(ConnectionFactory.__channel)
 
         listen(ConnectionFactory.__channel, 
                SendRequest, 
-               lambda event, options = options: ConnectionFactory.__on_send_request(event, options))
+               lambda event, options = connection_parameters: ConnectionFactory.__on_send_request(event, options))
 
     @staticmethod
     def close_channel():
         if ConnectionFactory.__channel:
             ConnectionFactory.__channel.close()
             ConnectionFactory.__channel = None
-        
+    # do i need close stub method    
 
 
 class ChannelAlreadyCreatedException(Exception):
@@ -88,4 +89,6 @@ class StubAlreadyCreatedException(Exception):
 
 
 class StubHasNotBeenCreatedException(Exception):
+    pass
+class WrongConnectionParametersTypeException(Exception):
     pass
