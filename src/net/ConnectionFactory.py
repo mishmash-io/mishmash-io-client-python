@@ -12,80 +12,71 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import asyncio
-import uuid
-
 from grpclib.client import Channel
 from grpclib.events import listen, SendRequest
 
 import mishmash_rpc_grpc
+
 from net.MishmashConnectionParameters import MishmashConnectionParameters
+from net.MishmashAuthentication import MishmashAuthentication
 
+class StubAlreadyCreatedException(Exception):
+    pass
 
-
+class WrongConnectionParametersTypeException(Exception):
+    pass
 
 class ConnectionFactory():
 
     __stub = None
     __channel = None
+    __authenticator = None
 
     @staticmethod
     def get_stream():
-        return ConnectionFactory.__stub.stream.open() 
-
+        return ConnectionFactory.__stub.stream.open()
+    
     @staticmethod
     def get_mutation():
-        return ConnectionFactory.__stub
+        return ConnectionFactory.__stub.mutate.open()
 
     @staticmethod
     async def __on_send_request(event, options):
 
-        event.metadata['x-mishmash-app-id'] = str(uuid.uuid4())
-        event.metadata['authorization'] = "Bearer {}".format(
-            options.get_auth_app_id())
-            
-    @staticmethod
-    def set_connection(options):
+        event.metadata['x-mishmash-app-id'] = ConnectionFactory.__authenticator.app_id
+        event.metadata['authorization'] =  ConnectionFactory.__authenticator.authorization_header
 
-        if not isinstance(options, MishmashConnectionParameters):
-            raise Exception("wrong connection parameters type")
+    @staticmethod
+    def set_connection(connection_parameters):
 
         if ConnectionFactory.__channel:
             return ConnectionFactory.__channel
-        else:
-            ConnectionFactory.__channel = Channel(options.get_url(), 
-                                                  options.get_port(), 
-                                                  ssl=options.get_use_ssl())
+
+        if not isinstance(connection_parameters, MishmashConnectionParameters):
+            raise WrongConnectionParametersTypeException(
+                " type of connection parameters is {}, it must be MishmashConnectionParameters".format(type(connection_parameters)))
+
+        ConnectionFactory.__channel = Channel(connection_parameters.get_url(),
+                                              connection_parameters.get_port(),
+                                              ssl=connection_parameters.get_use_ssl())
+
+        
+        ConnectionFactory.__authenticator = MishmashAuthentication.get_authenticator(connection_parameters.get_auth_method())
+
 
         if ConnectionFactory.__stub:
-            raise ChannelHasNotBeenCreatedException
+            raise StubAlreadyCreatedException()
 
+        ConnectionFactory.__stub = mishmash_rpc_grpc.MishmashServiceStub(
+                                                    ConnectionFactory.__channel)
 
-        ConnectionFactory.__stub = mishmash_rpc_grpc.MishmashServiceStub(ConnectionFactory.__channel)
-
-        listen(ConnectionFactory.__channel, 
-               SendRequest, 
-               lambda event, options = options: ConnectionFactory.__on_send_request(event, options))
+        listen(ConnectionFactory.__channel,
+               SendRequest,
+               lambda event, options=connection_parameters: ConnectionFactory.__on_send_request(event, options))
 
     @staticmethod
     def close_channel():
         if ConnectionFactory.__channel:
             ConnectionFactory.__channel.close()
             ConnectionFactory.__channel = None
-        
 
-
-class ChannelAlreadyCreatedException(Exception):
-    pass
-
-
-class ChannelHasNotBeenCreatedException(Exception):
-    pass
-
-
-class StubAlreadyCreatedException(Exception):
-    pass
-
-
-class StubHasNotBeenCreatedException(Exception):
-    pass

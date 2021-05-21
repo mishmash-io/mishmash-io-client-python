@@ -16,7 +16,15 @@ from async_timeout import timeout
 
 from net.ConnectionFactory import ConnectionFactory
 import net.MishmashMessages as MishmashMessages
+
 import utils
+
+class MishmashStreamErrorException(Exception):
+    pass
+
+
+class MishmashStreamWrongMessageType(Exception):
+    pass
 
 
 class MishmashStream():
@@ -26,7 +34,7 @@ class MishmashStream():
         self.server_seq_no = 0
         self.results = None
         self.index = 0
-        self.instance = 0  
+        self.instance = 0
         self.base_set = base_set
 
     async def run(self):
@@ -43,12 +51,12 @@ class MishmashStream():
 
                 async with timeout(utils.RECV_TIMEOUT):
                     recv_msg = await stream.recv_message()
-                    
+
                     if recv_msg:
 
-                        msg_type = MishmashMessages.get_srv_stream_message_type(recv_msg) 
+                        msg_type = MishmashMessages.get_srv_stream_message_type(
+                            recv_msg)
 
-                        
                         if not setup_msg_has_been_ack:
                             if msg_type == "setup_ack":
                                 setup_msg_has_been_ack = True
@@ -67,7 +75,6 @@ class MishmashStream():
                             elif msg_type == "debug":
                                 await self.process_debug_message(stream, recv_msg)
                     else:
-                        # no more messages - what if stream is closed  ? stream
 
                         if self.results:
                             yield self.results
@@ -80,8 +87,8 @@ class MishmashStream():
         hierarchy, value = MishmashMessages.from_yield_data(recv_msg)
 
         if not hierarchy:
-            # TODO possible bug see it is ok
             yield value
+
         else:
             if self.index != hierarchy[0].member.index:
 
@@ -92,7 +99,7 @@ class MishmashStream():
                 self.results = None
 
             if self.results is None:
-               
+
                 if hierarchy[1].member.HasField("index"):
                     self.results = []
                 else:
@@ -120,8 +127,3 @@ class MishmashStream():
         raise Exception("process debug msg not implemented yet")
 
 
-class MishmashStreamErrorException(Exception):
-    pass
-
-class MishmashStreamWrongMessageType(Exception):
-    pass

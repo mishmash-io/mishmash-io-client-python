@@ -23,19 +23,13 @@ from MishmashLiteral import MishmashLiteral
 import utils
 
 
-def to_decimal(arg):
-    # TODO ADD OTHER string_sequence, big_decimal
-
-    if isinstance(arg, int):
-        return mishmash_rpc_pb2.DecimalValue(s_int_64=arg)
-    elif isinstance(arg, float):
-        return mishmash_rpc_pb2.DecimalValue(floating=arg)
-
 
 def to_id(arg):
-    # todo what types can pass
-    return mishmash_rpc_pb2.Id(id=str(arg))
-
+    if isinstance(arg, str):
+        return mishmash_rpc_pb2.Id(id=arg)
+    else:
+        return mishmash_rpc_pb2.Id(id=str(arg))
+        
 
 def to_member(arg):
     if isinstance(arg, int):
@@ -44,6 +38,16 @@ def to_member(arg):
         return mishmash_rpc_pb2.Member(name=arg)
     else:
         raise Exception("wrong member type for arg = ", arg, type(arg))
+
+
+def to_decimal(arg):
+    # TODO ADD OTHER string_sequence, big_decimal
+
+    if isinstance(arg, int):
+        return mishmash_rpc_pb2.DecimalValue(s_int_64=arg)
+    elif isinstance(arg, float):
+        return mishmash_rpc_pb2.DecimalValue(floating=arg)
+
 
 
 def to_yield_member(arg, _id):
@@ -150,22 +154,48 @@ def to_set_descriptor_list(target_set):
     return descriptor_list
 
 
-
 def to_setup_msg(client_seq_no, base_set, client_options=None):
     if not client_options:
         client_options = {}
     return mishmash_rpc_pb2.StreamClientMessage(
-                        client_seq_no=client_seq_no, 
-                        setup=mishmash_rpc_pb2.MishmashSetup(target_set=to_set_descriptor_list(base_set)))
-
-
-    
+        client_seq_no=client_seq_no,
+        setup=mishmash_rpc_pb2.MishmashSetup(target_set=to_set_descriptor_list(base_set)))
 
 
 def to_yield_data_ack(client_seq_no):
 
-    return  mishmash_rpc_pb2.StreamClientMessage(
-            client_seq_no=client_seq_no, ack=mishmash_rpc_pb2.YieldDataAck())
+    return mishmash_rpc_pb2.StreamClientMessage(
+        client_seq_no=client_seq_no, ack=mishmash_rpc_pb2.YieldDataAck())
+
+
+def to_client_invoke_result(client_seq_no, ack_seq_no, result):
+
+    return mishmash_rpc_pb2.StreamClientMessage(
+        client_seq_no=client_seq_no, invoke_result=mishmash_rpc_pb2.ClientInvokeResult(ack_seq_no=ack_seq_no, result=to_value(result)))
+
+
+def to_console_output_ack(client_seq_no, ack_seq_no):
+
+    return mishmash_rpc_pb2.StreamClientMessage(
+        client_seq_no=client_seq_no, output_ack=mishmash_rpc_pb2.ConsoleOutputAck(ack_seq_no=ack_seq_no))
+
+
+def to_debug_ack(client_seq_no, ack_seq_no):
+
+    return mishmash_rpc_pb2.StreamClientMessage(
+        client_seq_no=client_seq_no, debug_ack=mishmash_rpc_pb2.DebugAck(ack_seq_no=ack_seq_no))
+
+def from_client_invoke_request(invoke_request):
+
+    return invoke_request.callable_id
+
+
+def to_mutate_setup_msg(client_seq_no, base_set, client_options=None):
+    if not client_options:
+        client_options = {}
+    return mishmash_rpc_pb2.MutationClientMessage(
+        client_seq_no=client_seq_no,
+        setup=mishmash_rpc_pb2.MishmashSetup(target_set=to_set_descriptor_list(base_set)))
 
 
 
@@ -214,7 +244,7 @@ def from_value(value):
     elif value.HasField("string"):
         return from_string(value.string)
     elif value.HasField("date"):
-        return datetime.strptime(value.date.iso8601, "%Y-%m-%dT%H:%M:%S%z")
+        return datetime.strptime(value.date.iso8601, "%Y-%m-%dT%H:%M:%SZ")
     elif value.HasField("buffer"):
         raise Exception("get buffer not implemented yet")
     elif value.HasField("null"):
@@ -326,6 +356,7 @@ def from_setup_msg(setup_msg):
 
     return result_set
 
+
 def get_srv_stream_message_type(reply):
 
     if reply.HasField("yield_data"):
@@ -345,7 +376,8 @@ def get_srv_stream_message_type(reply):
 
 
 def get_srv_mutation_message_type(reply):
-
+    if not reply:
+        return None
     if reply.HasField("ack"):
         return "ack"
     elif reply.HasField("setup_ack"):
@@ -370,3 +402,6 @@ def to_error_msg(error):
         pass
 
     return error_msg
+
+def to_mutation_client_msg(client_seq_no, yield_data):
+    return mishmash_rpc_pb2.MutationClientMessage(client_seq_no=client_seq_no, yield_data=yield_data)

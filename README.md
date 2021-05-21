@@ -10,8 +10,28 @@ This is the *mishmash io* client library for Python. Use it to connect, store / 
 
 ## Installing
 
+for using Mishmash in Heroku with jwt authentication please install
+
 ```bash
-$ pip install mishmash-io-client
+$ pip install mishmash-io-client["jwt"]
+```
+
+for using Mishmash in Azure cloud please install
+
+```bash
+$ pip install mishmash-io-client["azure"]
+```
+
+for using Mishmash in Aws cloud please install
+
+```bash
+$ pip install mishmash-io-client["aws"]
+```
+
+for using Mishmash in Google cloud please install
+
+```bash
+$ pip install mishmash-io-client["google"]
 ```
 
 ## Initializing the client
@@ -106,19 +126,32 @@ Simplest ways to create broader mishmashes in Python are:
 
 ### Adding code
 
-Check out [mishmash.io](https://mishmash.io) for more recent version of this document.
+Usually you do not want to download all the data you have 'selected' with mishmash object.
+For that reason mishmash gives a way to process selected data on the server side and get only the end results from processing. 
+
+If you have a built mishmash you can submit a function or callable code to the mishmash server which defines an operation
+over selected data. That piece of code will be optimized and run in parallel on the mishmash server instead of running locally 
+
+TODO add text for server side optimization 
+
 
 ### More ways to build a mishmash
 
 Check out [mishmash.io](https://mishmash.io) for more recent version of this document.
 
-#### set operators
+#### Set operators
 
-Check out [mishmash.io](https://mishmash.io) for more recent version of this document.
+You can use bitwise set operators & and | over mishmash object
+
+## Looping on a mishmash
+
+Given that a mishmash variable always represents a mishmash of data (or a set) - 
+looping on it should have the effect of 'pull those elements from the server and use them'.
 
 ## Mutating a mishmash
 
-Check out [mishmash.io](https://mishmash.io) for more recent version of this document.
+You can 'mutate' given mishmash - send local data or python code to the server
+change or store and store them for future usage
 
 ## Computing with a mishmash
 

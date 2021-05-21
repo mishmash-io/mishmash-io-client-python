@@ -13,11 +13,9 @@
 # limitations under the License.
 
 
-# TODO add other exceptions
-
-class MishmashNoConfigException(Exception):
+class MishmashException(Exception):
     pass
 
 
-class MishmashNotImplementedYetException(Exception):
+class MishmashNotImplementedYetException(MishmashException):
     pass

@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""This module contains setup instructions for mishmash-io-client'."""
+
 from setuptools import setup, find_packages
 from setuptools.command.install import install
 from setuptools.command.build_py import build_py
@@ -23,7 +25,7 @@ URL = 'https://mishmash.io'
 EMAIL = 'info@mishmash.io'
 AUTHOR = 'mishmash.io'
 REQUIRES_PYTHON = '>=3.6.0'
-VERSION = '0.0.4'
+VERSION = '0.0.9'
 
 def readme():
     try:
@@ -31,10 +33,10 @@ def readme():
             return doc.read()
     except IOError:
         return """\
-# mishmash-io-client
+            # mishmash-io-client
 
-See [mishmash io](https://mishmash.io) for documentation.
-"""
+            See [mishmash io](https://mishmash.io) for documentation.
+            """
 
 
 with open('requirements.txt') as f:
@@ -62,6 +64,18 @@ setup(
     extras_require={
         'dev': [
             'pytest',
+        ],
+        'jwt': [
+            'mishmash-io-jwt-auth'
+        ],
+        'aws': [
+            'mishmash-io-aws-auth'
+        ],
+        'google': [
+            'mishmash-io-google-auth'
+        ],
+        'azure': [
+            'mishmash-io-azure-auth'
         ]
     },
     setup_requires=[

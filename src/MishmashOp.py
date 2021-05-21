@@ -12,25 +12,45 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-class MishmashOp(object):
 
+class MishmashOp(object):
+    """
+        MishmashOp class represents various predefined operations(op) 
+        supported by the Mishmash.
+    """
     OP_PREFIX = '__'
     OP_PREFIX_LEN = len(OP_PREFIX)
 
-    ops = {
+    OPS = {
         'avg': 'avg',
         'coalesce': 'coalesce',
         'filter': 'filter',
+        'len': 'len',
+        'equal':'equal',
+        'contains':'contains'
     }
 
     @classmethod
     def get_op_id(cls, literal):
+        """
+            Finds the op id for the specified string
+
+            Parameters
+            ----------
+                literal(string): predefined operation name which we want to get
+
+            Returns:
+                string: predefined operation id for the specified string (if it exists)
+                or None otherwise
+        """
+
         literal_prefix = literal[:cls.OP_PREFIX_LEN]
-        literal = literal[cls.OP_PREFIX_LEN:]
+        op_id = literal[cls.OP_PREFIX_LEN:]
 
         if literal_prefix != cls.OP_PREFIX:
             return None
-        if literal not in cls.ops:
+
+        if op_id not in cls.OPS:
             return None
 
-        return literal
+        return op_id

@@ -15,72 +15,81 @@
 import os
 import json
 
-from utils import str_to_bool
+from utils import str_to_bool, value_or_exception, InvalidBooleanValueException, MissingConfigurationVariableException
+
 class MishmashConnectionParameters():
+    
     DEFAULT_SSL_PORT = 443
     DEFAULT_PORT = 80
-    CONFIG_PATHS = [
-        ("/etc/mishmashio", "client.json"),
-        ("/etc/mishmashio", "client-python.json"),
-        ("~/.mishmashio", "client.json"),
-        ("~/.mishmashio", "client-python.json"),
-        ("./", "client.json")
+    
+    DEFAULT_CONFIG_FILE_PATHS = [
+
+        "/etc/mishmashio/client.json",
+        "/etc/mishmashio/client-python.json",
+        "~/.mishmashio/client.json",
+        "~/.mishmashio/client-python.json",
+        "./client.json",
+        "./client-python.json"
     ]
 
-    def __init__(self):
+    def __init__(self, config_file_path=None):
 
-        connection_parameters = self.get_configuration()
+        self.config_file_paths = []
+        if isinstance(config_file_path, str):
+            self.config_file_paths.append(config_file_path)
+
+        self.config_file_paths += self.DEFAULT_CONFIG_FILE_PATHS
+
+        self.__raw_connection_parameters = self.get_configuration()
 
         try:
-            self.__auth_method = connection_parameters["MISHMASHIO_AUTH_METHOD"]
-            self.__auth_app_id = connection_parameters["MISHMASHIO_AUTH_APP_ID"]
-            self.__server_addresses = self.parse_server_list(connection_parameters["MISHMASHIO_SERVERS"])
-            self.__use_ssl = str_to_bool(connection_parameters["MISHMASHIO_USE_SSL"])
-            self.__raw_connection_parameters = connection_parameters
+            self.__auth_method = value_or_exception(self.__raw_connection_parameters["MISHMASHIO_AUTH_METHOD"])
+            self.__auth_app_id = value_or_exception(self.__raw_connection_parameters["MISHMASHIO_APP_ID"])
+            self.__server_addresses = self.parse_server_list(value_or_exception(self.__raw_connection_parameters["MISHMASHIO_SERVERS"]))
+            self.__use_ssl = str_to_bool(self.__raw_connection_parameters["MISHMASHIO_USE_SSL"])
 
         except KeyError as e:
-            raise Exception("missing config variable {}".format(e))
-
+            raise MissingConfigurationVariableException(
+                "{} config variable is missing".format(e)) from None
+                
+        except InvalidBooleanValueException as e:
+            raise InvalidBooleanValueException(
+                " MISHMASHIO_USE_SSL value must be True / False ".format(e)) from None
+    
+        
     def get_configuration(self):
+        configuration = self.get_configuration_from_file()
 
-        config = {}
+        if not configuration:
+            configuration = self.get_configuration_from_env()
 
-        for path, name in self.CONFIG_PATHS:
+        return configuration
+
+    def get_configuration_from_file(self):
+        configuration = None
+        for file_path in self.config_file_paths:
             try:
-                config = self.parse_config_file(path, name)
-                break
+                with open(file_path, "r") as f:
+                    configuration = json.load(f)
+                    break
             except FileNotFoundError:
                 pass
+        return configuration
 
-        if not config:
-            try:
-                config = self.parse_env_vars()
-            except:
-                raise Exception("no valid configuration")
-        
-        return config
-
-    def parse_env_vars(self):
-
-        def get_var_with_exception(env_vars, name):
-            v = env_vars.get(name, None)
-            if not v:
-                raise Exception("missing config variable {}".format(name))
-          
-            return v
-
+    def get_configuration_from_env(self):
         config = {
-            "MISHMASHIO_AUTH_METHOD": get_var_with_exception(os.environ, "MISHMASHIO_AUTH_METHOD"),
-            "MISHMASHIO_AUTH_APP_ID": get_var_with_exception(os.environ, "MISHMASHIO_AUTH_APP_ID"),
-            "MISHMASHIO_SERVERS": get_var_with_exception(os.environ, "MISHMASHIO_SERVERS"),
-            "MISHMASHIO_USE_SSL": get_var_with_exception(os.environ, "MISHMASHIO_USE_SSL")
+                "MISHMASHIO_AUTH_METHOD": os.environ.get("MISHMASHIO_AUTH_METHOD",None),
+                "MISHMASHIO_APP_ID": os.environ.get("MISHMASHIO_APP_ID",None),
+                "MISHMASHIO_SERVERS": os.environ.get("MISHMASHIO_SERVERS",None),
+                "MISHMASHIO_USE_SSL": os.environ.get("MISHMASHIO_USE_SSL",None),
             }
 
-        return config
+        for k, v in config.items():
+            if v is None:
+                return None
 
-    def parse_config_file(self, path, name):
-        with open(os.path.join(path, name), "r") as config_file:
-            return json.load(config_file)
+        return config
+            
 
     def parse_server_list(self, server_list):
 
@@ -95,6 +104,7 @@ class MishmashConnectionParameters():
                     port = self.DEFAULT_SSL_PORT
                 else:
                     port = self.DEFAULT_PORT
+            
             server_addresses.append((url, port))
 
         return server_addresses
@@ -113,5 +123,3 @@ class MishmashConnectionParameters():
 
     def get_use_ssl(self):
         return self.__use_ssl
-
-
