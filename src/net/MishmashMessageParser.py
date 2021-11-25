@@ -12,16 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import inspect
 from datetime import datetime
+from MishmashExceptions import MishmashNotImplementedYetException, MishmashInvalidMessageException
 
 import mishmash_rpc_pb2
-
 from MishmashSet import MishmashSet
 from MishmashFunction import MishmashFunction
 from MishmashLiteral import MishmashLiteral
 import utils
 
+MUTATION_TYPE_OVERWRITE ='overwrite'
+MUTATION_TYPE_APPEND ='append'
 
 
 def to_id(arg):
@@ -37,7 +38,7 @@ def to_member(arg):
     elif isinstance(arg, str):
         return mishmash_rpc_pb2.Member(name=arg)
     else:
-        raise Exception("wrong member type for arg = ", arg, type(arg))
+        raise MishmashInvalidMessageException("wrong member type for arg = ", arg, type(arg))
 
 
 def to_decimal(arg):
@@ -66,7 +67,7 @@ def to_litearal(arg):
         return mishmash_rpc_pb2.Literal(value=arg)
 
     else:
-        raise Exception("wrong member type for arg = ", arg, type(arg))
+        raise MishmashInvalidMessageException("wrong member type for arg = ", arg, type(arg))
 
 
 def to_value(arg):
@@ -82,7 +83,8 @@ def to_value(arg):
         return mishmash_rpc_pb2.Value(string=mishmash_rpc_pb2.StringValue(sequence=arg))
     elif utils.isinstance_datetime(arg):
         return mishmash_rpc_pb2.Value(date=mishmash_rpc_pb2.DateValue(iso8601=arg.isoformat()))
-
+    else:
+        raise MishmashNotImplementedYetException(f"value with type {type(arg)} is not implemented yet")
     # TODO add buffer
 
 
@@ -114,8 +116,9 @@ def to_lambda_function(arg):
 def to_set_descriptor_list(target_set):
 
     def populate_set_descriptor_list(target_set, set_descriptors):
+        
         if isinstance(target_set, MishmashSet):
-
+            
             descriptor_list = set_descriptors.entries.add(intersection=mishmash_rpc_pb2.Intersection(
                 sets=mishmash_rpc_pb2.MishmashSetDescriptorList()))
 
@@ -126,7 +129,6 @@ def to_set_descriptor_list(target_set):
                 target_set.get_def(), descriptor_list.intersection.sets)
 
         elif isinstance(target_set, list):
-
             descriptor_list = set_descriptors.entries.add(union=mishmash_rpc_pb2.Union(
                 sets=mishmash_rpc_pb2.MishmashSetDescriptorList()))
 
@@ -134,12 +136,10 @@ def to_set_descriptor_list(target_set):
                 populate_set_descriptor_list(v, descriptor_list.union.sets)
 
         elif isinstance(target_set, MishmashFunction):
-
             set_descriptors.entries.add(
                 lambda_function=to_lambda_function(target_set))
 
         elif isinstance(target_set, MishmashLiteral):
-
             # TODO can we have id literal or we can have only value literal check proto file
             set_descriptors.entries.add(literal=mishmash_rpc_pb2.Literal(
                 value=to_value(target_set.get_literal())))
@@ -152,14 +152,6 @@ def to_set_descriptor_list(target_set):
     populate_set_descriptor_list(target_set, descriptor_list)
 
     return descriptor_list
-
-
-def to_setup_msg(client_seq_no, base_set, client_options=None):
-    if not client_options:
-        client_options = {}
-    return mishmash_rpc_pb2.StreamClientMessage(
-        client_seq_no=client_seq_no,
-        setup=mishmash_rpc_pb2.MishmashSetup(target_set=to_set_descriptor_list(base_set)))
 
 
 def to_yield_data_ack(client_seq_no):
@@ -190,12 +182,38 @@ def from_client_invoke_request(invoke_request):
     return invoke_request.callable_id
 
 
-def to_mutate_setup_msg(client_seq_no, base_set, client_options=None):
+def to_mutation_type(str_mutation_type):
+    if str_mutation_type == MUTATION_TYPE_OVERWRITE:
+        return mishmash_rpc_pb2.MishmashSetup.MutationType.OVERWRITE
+    elif str_mutation_type == MUTATION_TYPE_APPEND:
+        return mishmash_rpc_pb2.MishmashSetup.MutationType.APPEND
+    else:
+        return mishmash_rpc_pb2.MishmashSetup.MutationType.APPEND
+
+
+
+def to_stream_setup_msg(client_seq_no, base_set, mutation_type=None,client_options=None):
+    
     if not client_options:
         client_options = {}
+
+    return mishmash_rpc_pb2.StreamClientMessage(
+        client_seq_no=client_seq_no,
+        setup=mishmash_rpc_pb2.MishmashSetup(target_set=to_set_descriptor_list(base_set),
+                                             client_options=client_options,
+                                             mutation_type=to_mutation_type(mutation_type)))
+
+
+
+def to_mutate_setup_msg(client_seq_no, base_set, mutation_type , client_options=None):
+    if not client_options:
+        client_options = {}
+    
     return mishmash_rpc_pb2.MutationClientMessage(
         client_seq_no=client_seq_no,
-        setup=mishmash_rpc_pb2.MishmashSetup(target_set=to_set_descriptor_list(base_set)))
+        setup=mishmash_rpc_pb2.MishmashSetup(target_set=to_set_descriptor_list(base_set),
+                                             client_options=client_options,
+                                             mutation_type=to_mutation_type(mutation_type)))
 
 
 
@@ -221,11 +239,11 @@ def from_decimal(decimal):
     elif decimal.HasField("floating"):
         return float(decimal.floating)
     elif decimal.HasField("string_sequence"):
-        raise Exception("string_sequence not implemented yet")
+        raise MishmashNotImplementedYetException("string_sequence not implemented yet")
     elif decimal.HasField("big_decimal"):
-        raise Exception("big_decimal not implemented yet")
+        raise MishmashNotImplementedYetException("big_decimal not implemented yet")
     else:
-        raise Exception("wrong decimal value")
+        raise MishmashNotImplementedYetException("wrong decimal value")
 
 
 def from_string(string):
@@ -246,11 +264,11 @@ def from_value(value):
     elif value.HasField("date"):
         return datetime.strptime(value.date.iso8601, "%Y-%m-%dT%H:%M:%SZ")
     elif value.HasField("buffer"):
-        raise Exception("get buffer not implemented yet")
+        raise MishmashNotImplementedYetException("get buffer not implemented yet")
     elif value.HasField("null"):
         return None
     else:
-        raise Exception(
+        raise MishmashInvalidMessageException(
             "wrong value = {} with type = {}".format(value, type(value)))
 
 
@@ -261,7 +279,7 @@ def from_litearal(arg):
         return from_value(arg.value)
 
     else:
-        raise Exception("wrong member type for arg = ", arg, type(arg))
+        raise MishmashInvalidMessageException("wrong member type for arg = ", arg, type(arg))
 
 
 def from_id(_id):
@@ -276,7 +294,7 @@ def from_yield_data(yield_data):
 
     instance_id, value = from_yield_value(yield_data.yield_data.value)
 
-    return yield_data.yield_data.hierarchy, value
+    return yield_data.yield_data.hierarchy, value, instance_id
 
 
 def get_key_from_member(member):
@@ -315,20 +333,28 @@ def process_yield_data_message(hierarchy, value, results):
         results[key] = value
 
 
-def to_yield_data(y, cnt):
+import pprint
 
+def to_yield_data(y, client_seq_no, instance_id):
+    
     def flatten(x, name=[]):
+        nonlocal client_seq_no
         if type(x) is dict:
-            for a in x:
-                cnt[a] += 1
-                yield from flatten(x[a], name + [to_yield_member(a, cnt[a])])
+            for idx in x:
+                instance_id[idx] += 1
+                yield from flatten(x[idx], name + [to_yield_member(idx, instance_id[idx]-1)])
+                
+
         elif isinstance(x, (list, tuple)):
-            for a, v in enumerate(x):
-                cnt[a] += 1
-                yield from flatten(v, name + [to_yield_member(a, cnt[a])])
+            for idx, v in enumerate(x):
+                instance_id[idx] += 1
+                yield from flatten(v, name + [to_yield_member(idx, instance_id[idx]-1)])
+                
         else:
-            cnt[x] += 1
-            yield mishmash_rpc_pb2.YieldData(hierarchy=name, value=to_yield_value(x, cnt[x]))
+            instance_id[x] += 1
+            client_seq_no += 1
+            yield mishmash_rpc_pb2.MutationClientMessage(client_seq_no=client_seq_no, yield_data=mishmash_rpc_pb2.YieldData(hierarchy=name, value=to_yield_value(x, instance_id[x]-1))), client_seq_no
+            
 
     yield from flatten(y)
 
@@ -358,7 +384,6 @@ def from_setup_msg(setup_msg):
 
 
 def get_srv_stream_message_type(reply):
-
     if reply.HasField("yield_data"):
         return "yield_data"
     elif reply.HasField("setup_ack"):
@@ -372,7 +397,7 @@ def get_srv_stream_message_type(reply):
     elif reply.HasField("debug"):
         return "debug"
     else:
-        raise Exception("no such type", reply)
+        raise MishmashInvalidMessageException(f"no such type {reply}" )
 
 
 def get_srv_mutation_message_type(reply):
@@ -385,7 +410,7 @@ def get_srv_mutation_message_type(reply):
     elif reply.HasField("error"):
         return "error"
     else:
-        raise Exception("no such type", reply)
+        raise MishmashInvalidMessageException("no such type", reply)
 
 
 def to_error_msg(error):

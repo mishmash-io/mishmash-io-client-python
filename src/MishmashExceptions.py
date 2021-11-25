@@ -19,3 +19,21 @@ class MishmashException(Exception):
 
 class MishmashNotImplementedYetException(MishmashException):
     pass
+
+class MishmashInvalidConfigException(MishmashException):
+    pass
+
+class MishmashMissingConfigVariableException(MishmashException):
+    pass
+
+class MishmashWrongCredentialsException(MishmashException):
+    pass
+
+class MishmashModuleNotFoundException(MishmashException):
+    pass
+
+class MishmashTimeoutException(MishmashException):
+    pass
+
+class MishmashInvalidMessageException(MishmashException):
+    pass

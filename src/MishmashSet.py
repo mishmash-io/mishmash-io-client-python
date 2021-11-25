@@ -12,29 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from copy import copy
+
 import json
 import types
+from copy import copy
 
 from MishmashLiteral import MishmashLiteral
 from MishmashFunction import MishmashFunction
-from MishmashExceptions import MishmashNotImplementedYetException
+from MishmashExceptions import MishmashNotImplementedYetException, MishmashException
 from utils import isinstance_datetime, isinstance_of_sequence
 
 
-class MishmashSetSerializationUnsupportedTypeException(Exception):
+class MishmashSetSerializationUnsupportedTypeException(MishmashException):
     pass
 
-
-class MishmashSetIntersectionWithUnknownException(Exception):
+class MishmashSetIntersectionWithUnknownException(MishmashException):
     pass
 
-
-class MishmashSetUnionWithUnknownException(Exception):
+class MishmashSetUnionWithUnknownException(MishmashException):
     pass
 
-
-class MishmashSetWrongKeyException(Exception):
+class MishmashSetWrongKeyException(MishmashException):
     pass
 
 
@@ -462,12 +460,13 @@ class MishmashSet():
                 dict
         """
 
-        def populate_set_descriptors(target_set, descriptors):
-
+        def populate_set_descriptors(target_set, descriptors) :
             if isinstance(target_set, MishmashSet):
+
+                s = target_set.get_def()
                 descriptors.append({self.SERIALIZATION_PARAMETER_NAME: []})
 
-                populate_set_descriptors(target_set.get_def(),
+                populate_set_descriptors(s,
                                          descriptors[-1][self.SERIALIZATION_PARAMETER_NAME])
 
             elif isinstance(target_set, list):

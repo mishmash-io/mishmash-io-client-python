@@ -10,29 +10,42 @@ This is the *mishmash io* client library for Python. Use it to connect, store / 
 
 ## Installing
 
-for using Mishmash in Heroku with jwt authentication please install
+### Using Mishmash io in Heroku with jwt authentication plugin please install
 
 ```bash
 $ pip install mishmash-io-client["jwt"]
 ```
 
-for using Mishmash in Azure cloud please install
+* Usage 
+
+    To be able to work with mishmash client you need to provide the following configuration as environment variables or as json file :
+    * for mishmash-io-auth-jwt plugin 
+        * MISHMASHIO_SERVERS - list of mishmash servers endpoints
+        * MISHMASHIO_APP_ID - id of the app using mishmash client
+        * MISHMASHIO_AUTH_SERVER - the identity provider server endpoint
+        * MISHMASHIO_AUTH_PRIVATE_KEY - Private key used for authentication with the identity provider
+    * for mishmash-io-client
+        * MISHMASHIO_AUTH_METHOD - must be set to "jwt"
+        * MISHMASHIO_USE_SSL - True if you want to use ssl connection
+
+### Using Mishmash in Azure cloud please install
 
 ```bash
 $ pip install mishmash-io-client["azure"]
 ```
 
-for using Mishmash in Aws cloud please install
+### Using Mishmash in Aws cloud please install
 
 ```bash
 $ pip install mishmash-io-client["aws"]
 ```
 
-for using Mishmash in Google cloud please install
+### Using Mishmash in Google cloud please install
 
 ```bash
 $ pip install mishmash-io-client["google"]
 ```
+
 
 ## Initializing the client
 

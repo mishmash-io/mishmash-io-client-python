@@ -12,49 +12,42 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import datetime
 import json
-from typing import Iterable
 
-RECV_TIMEOUT = 5  #value in seconds
+from MishmashExceptions import MishmashWrongCredentialsException
+
+MUTATION_TYPE_OVERWRITE ='overwrite'
+MUTATION_TYPE_APPEND ='append'
+
 
 class InvalidBooleanValueException(Exception):
     pass
 
-class MissingConfigurationVariableException(Exception):
-    pass
+def parse_server_list(server_list, use_ssl, DEFAULT_SSL_PORT, DEFAULT_PORT):
+    """
+        Returns  parsed list of ips and ports
+    """
+    if isinstance(server_list, str):
+        try:
+            server_list= json.loads(server_list)
+        except json.decoder.JSONDecodeError:
+            raise MishmashWrongCredentialsException("Please provide server list in json format as list of strings ['ip:port']")
 
+    server_addresses = []
+    for server in server_list:
+        url_and_port = server.split(":")
+        try:
+            url, port = url_and_port
+        except ValueError:
+            url = url_and_port[0]
+            if  use_ssl:
+                port = DEFAULT_SSL_PORT
+            else:
+                port = DEFAULT_PORT
+        
+        server_addresses.append(f"{url}:{port}")
 
-def isinstance_datetime(arg):
-
-    if isinstance(arg, datetime.datetime):
-        return True
-    elif isinstance(arg, datetime.date):
-        return True
-    else:
-        return False
-
-def str_to_bool(str_val):
-    
-    if isinstance(str_val, bool):
-        return str_val
-    
-    if isinstance(str_val, str):
-        str_val = str_val.lower().capitalize()
-    
-    try:
-        return eval(str_val)
-    except Exception as e:
-        pass
-
-    return str_val
-
-def value_or_exception(value):
-    
-    if value:
-        return value
-    
-    raise MissingConfigurationVariableException()
+    return server_addresses
 
 def str_to_bool(str_val):
     
@@ -62,14 +55,18 @@ def str_to_bool(str_val):
         return str_val
 
     if isinstance(str_val, str):
-        str_val = str_val.lower().capitalize()
+        str_val = str_val.lower()
 
-        if str_val == "True":
+        if str_val in ['true', 'yes', 'y']:
             return True
-        elif str_val == "False":
+        elif str_val in ['false','no', 'n', '']:
             return False
         else:
             raise InvalidBooleanValueException() from None
+      
+
+from typing import Iterable
+
 
 def is_jsonable(obj):
     
@@ -83,7 +80,19 @@ def is_class(obj):
     return isinstance(obj, type)
 
 def is_iterable(obj):
+    if isinstance(obj, str):
+        return False
     return isinstance(obj, Iterable)
+from datetime import datetime
+
+def isinstance_datetime(arg):
+
+    if isinstance(arg, datetime.datetime):
+        return True
+    elif isinstance(arg, datetime.date):
+        return True
+    else:
+        return False
 
 
 def isinstance_of_sequence(arg):
@@ -92,3 +101,8 @@ def isinstance_of_sequence(arg):
            isinstance(arg, tuple) or \
            isinstance(arg, set) or \
            isinstance(arg, frozenset)
+
+
+def load_credential_from_file(filepath):
+    with open(filepath, 'rb') as f:
+        return f.read()

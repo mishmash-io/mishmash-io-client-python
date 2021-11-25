@@ -16,10 +16,10 @@ import json
 
 from MishmashOp import MishmashOp
 
+from MishmashExceptions import MishmashException
 
-class MishmashLiteralDeserializeException(Exception):
+class MishmashLiteralDeserializeException(MishmashException):
     pass
-
 
 class MishmashLiteral(object):
     """

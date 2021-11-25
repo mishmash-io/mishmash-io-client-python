@@ -15,13 +15,18 @@
 import platform
 import inspect
 
+def handle_stackframe_without_leak():
+    frame = inspect.currentframe()
+    try:
+        print(inspect.getframeinfo(frame))
+    finally:
+        del frame
 
 class MishmashFunction():
 
     SERIALIZATION_PARAMETER_NAME = 'f'
 
     def __init__(self, function_object):
-
         self.function_object = function_object
 
         self.name = function_object.__name__
