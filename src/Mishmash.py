@@ -12,55 +12,101 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import asyncio
 
-from net.ConnectionFactory import ConnectionFactory
-from net.MishmashConnectionParameters import MishmashConnectionParameters
+from MishmashSet import MishmashSet
+from MishmashLogger import MishmashLogger
+
+from MishmashExceptions import MishmashNotImplementedYetException 
+
+from net.MishmashGrpcClient import MishmashGrpcClient
 from net.MishmashStream import MishmashStream
 from net.MishmashMutation import MishmashMutation
 
-from MishmashSet import MishmashSet
-from MishmashExceptions import MishmashNoConfigException, MishmashNotImplementedYetException
+from utils import is_jsonable, is_class, is_iterable
 
+__all__ = ["mishmash"]
 
-ATTR = ["_set", "loop", "connection_parameters", "is_async"]
+ATTR = ["_set", "loop", "config",
+        "is_async", "logger", "async_stream", "logger","__grpc_client"]
 
 
 class Mishmash():
-    def __init__(self, is_async=False, loop=None):
+
+    '''
+        Core Mishmash module. 
+        Provides methods for basic Mishmash interactions
+    '''
+
+    def __init__(self, is_async=False, loop=None, logger=None):
+
+        MishmashGrpcClient()
 
         self._set = MishmashSet()
         self.is_async = is_async
+
+        if not loop:
+            loop = asyncio.get_event_loop()
+
         self.loop = loop
 
-        self.connection_parameters = MishmashConnectionParameters()
-        ConnectionFactory.set_connection(self.connection_parameters)
+        if not logger:
+            logger = MishmashLogger()
+
+        self.logger = logger
+
+    def set_config(self, is_async=False, loop=None, logger=None):
+
+        if is_async != self.is_async:
+            self.is_async = is_async
+
+        if loop:
+            self.loop = loop
+
+        if logger:
+            self.logger = logger
+
+        return self
 
     def __len__(self):
-        return len(self._set)
 
-    def __getitem__(self, name):
+        mishmash_len = next(iter(self.__intersection("__len")))
 
-        new_mishmash = self.__intersection(name)
+        if isinstance(mishmash_len, int):
+            return mishmash_len
 
-        if self.is_async:
-            raise MishmashNotImplementedYetException("not implemented async logic")
+        return 0
 
-        return new_mishmash
+    def __bool__(self):
+        return bool(self.__len__())
 
-    def __eq__(self, s):
-        raise MishmashNotImplementedYetException("not implemented __eq__ logic")
-    
-    def __del__(self): 
-        ConnectionFactory.close_channel()
+    def __eq__(self, other):
 
-    def __setitem__(self, name, value):
-        base_set = self._set
+        if not isinstance(other, Mishmash):
+            return False
 
-        if name:
-            base_set = self._set.intersection(name)
+        are_equal = next(iter(self.__intersection("__equal").__union(other)))
 
-        self.__upload(base_set, value)
+        if isinstance(are_equal, bool):
+            return are_equal
+
+        return False
+
+    def __del__(self):
+        pass
+
+    def __iter__(self):
+        return MishmashStream(self._set).sync_stream()
+
+    def __next__(self):
+        raise MishmashNotImplementedYetException("__next__ not implemented next")
+
+    def __aiter__(self):
+        return MishmashStream(self._set).async_stream()
+
+    async def __anext__(self):
+        raise MishmashNotImplementedYetException("__anext__ not implemented next")
 
     def __getattr__(self, name):
 
@@ -72,96 +118,110 @@ class Mishmash():
     def __setattr__(self, name, value):
 
         if name in ATTR:
-            # TODO smarter way to avoid recursion ??
             super().__setattr__(name, value)
         else:
             self.__setitem__(name, value)
+
+    def __getitem__(self, name):
+
+        new_mishmash = self.__intersection(name)
+
+        if self.is_async:
+            raise MishmashNotImplementedYetException(
+                "not implemented async __getitem__ logic")
+
+        return new_mishmash
+
+    def __setitem__(self, name, value):
+        if is_iterable(name):
+            base_set = self._set.intersection(
+                self.transform_args_to_mishmash_set_values(*name))
+        else:
+            base_set = self._set.intersection(
+                self.transform_args_to_mishmash_set_values(name))
+
+        self._set = base_set
+        self.__mutate(base_set, value)
 
     def __call__(self, *args, **kwargs):
 
         if not args and not kwargs:
             return self
         elif args and not kwargs:
-            return self.__union(*args)
+            return self.__union(args)
         elif kwargs and not args:
             return self.__union(kwargs)
         else:
             return self.__union([*args, kwargs])
 
-    def __iter__(self):
-        for i in self.__download():
-            yield i
-
     def new_mishmash(self, new_set):
-        # return new 'child' Mishmash object, inheriting all settings from $this
-       
+        '''
+            return new 'child' Mishmash object, inheriting all settings of self
+        '''
         res = self.__class__()
         res._set = new_set
         res.is_async = self.is_async
         res.loop = self.loop
-        res.connection_parameters = self.connection_parameters
-
         return res
 
-    def args_for_set(self, *args):
-        # transform user arguments into MishmashSet values
+    def __intersection(self, *args):
+        '''
+            Returns a new mishmash that represents the intersection of the supplied arguments.
+        '''
+        return self.new_mishmash(self._set.intersection(*self.transform_args_to_mishmash_set_values(*args)))
+
+    def __union(self, *args):
+        '''
+            Returns a new mishmash that represents the union of the supplied arguments.
+        '''
+        return self.new_mishmash(self._set.subset().union(*self.transform_args_to_mishmash_set_values(*args)))
+
+    def transform_args_to_mishmash_set_values(self, *args):
+        '''
+            Transform user arguments into MishmashSet values
+        '''
 
         tranformed_arg = []
         for arg in args:
-            # if self.is_scalar_mishmash(arg):
-            #     tranformed_arg.append(self.get_from_scalar(arg)._set)
-            # else:
+
             if isinstance(arg, Mishmash):
                 tranformed_arg.append(arg._set)
+
+            elif is_class(arg):
+                if is_jsonable(arg):
+                    tranformed_arg.append(json.dumps(arg))
             else:
                 tranformed_arg.append(arg)
 
         return tranformed_arg
 
-    def __union(self, *offset):
-        # return a 'united' set
-        return self.new_mishmash(self._set.subset().union(*self.args_for_set(*offset)))
+    def __contains__(self, item):
+        contains = next(iter(self.__intersection("__contains").__union(item)))
 
-    def __intersection(self, *offset):
-        # return a subset
-        return self.new_mishmash(self._set.intersection(*self.args_for_set(*offset)))
+        result = next(iter(contains))
+        if isinstance(result, bool):
+            return result
 
-    def __sync_download(self, stream):
-        pass
+        return False
 
-    async def __async_download(self, stream):
-        raise MishmashNotImplementedYetException("not implemented async logic")
+    def __and__(self, other):
+        return self.__intersection(other)
 
-    def __anext__(self):
-        raise MishmashNotImplementedYetException("not implemented async next")
+    def __or__(self, other):
+        return self.__union(other)
 
-    def __download(self):
-        stream = MishmashStream(self._set)
-        stream_generator = stream.run()
+    def __xor__(self, y):
+        raise MishmashNotImplementedYetException(
+            " xor logic not implemented yet")
 
-        if not self.loop:
-            self.loop = asyncio.get_event_loop()
+    def __hash__(self):
+        return id(self)
 
-        while True:
-            try:
-                yield self.loop.run_until_complete(stream_generator.__anext__())
-            except StopAsyncIteration:
-                # close chanel ??
-                break
-            except asyncio.TimeoutError:
-                break
+    def __mutate(self, base_set, values):
+        if self.is_async:
+            MishmashMutation().async_mutation(base_set, values)
+        else:
+            MishmashMutation().sync_mutation(base_set, values)
 
-    def __upload(self, base_set, *values):
-        # TODO use kwargs args 
-        mutation = MishmashMutation()
 
-        m = mutation.mutate(base_set, *values)
-
-        if not self.loop:
-            self.loop = asyncio.get_event_loop()
-
-        try:
-            self.loop.run_until_complete(m)
-
-        except Exception as e:
-            print(e)
+mishmash = Mishmash()

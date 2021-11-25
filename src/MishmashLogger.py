@@ -12,28 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
+import logging
+from logging import Logger
 
-class MishmashException(Exception):
-    pass
 
+class MishmashLogger(Logger):
+    
+    def __init__(self, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", *args, **kwargs):
+        self.formatter = logging.Formatter(format)
 
-class MishmashNotImplementedYetException(MishmashException):
-    pass
+        Logger.__init__(self, self.__class__.__name__, *args, **kwargs)
 
-class MishmashInvalidConfigException(MishmashException):
-    pass
+        self.addHandler(self.get_console_handler())
 
-class MishmashMissingConfigVariableException(MishmashException):
-    pass
-
-class MishmashWrongCredentialsException(MishmashException):
-    pass
-
-class MishmashModuleNotFoundException(MishmashException):
-    pass
-
-class MishmashTimeoutException(MishmashException):
-    pass
-
-class MishmashInvalidMessageException(MishmashException):
-    pass
+    def get_console_handler(self):
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setFormatter(self.formatter)
+        return console_handler

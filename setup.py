@@ -12,18 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from setuptools import setup, find_packages
-from setuptools.command.install import install
-from setuptools.command.build_py import build_py
-
-import os
-NAME = 'mishmash-io-client'
-DESCRIPTION = 'mishmash io client library'
-URL = 'https://mishmash.io'
-EMAIL = 'info@mishmash.io'
-AUTHOR = 'mishmash.io'
-REQUIRES_PYTHON = '>=3.6.0'
-VERSION = '0.0.4'
+from setuptools import setup
 
 def readme():
     try:
@@ -36,37 +25,25 @@ def readme():
 See [mishmash io](https://mishmash.io) for documentation.
 """
 
+def version():
+    with open('VERSION.txt', 'r') as version:
+        return version.readline().strip()
 
-with open('requirements.txt') as f:
-    INSTALL_REQUIREMENTS = f.read().splitlines()
-
-here = os.path.abspath(os.path.dirname(__file__))
 
 setup(
-    name=NAME,
-    version=VERSION,
-    description=DESCRIPTION,
+    name='mishmash-io-client',
+    version=version(),
+    description='mishmash io client library',
     long_description=readme(),
     long_description_content_type='text/markdown',
-    author=AUTHOR,
-    author_email=EMAIL,
-    python_requires=REQUIRES_PYTHON,
-    url=URL,
+    author='mishmash.io',
+    author_email='info@mishmash.io',
+    url='https://mishmash.io',
     project_urls={
         'Bug Tracker': 'https://github.com/mishmash-io/mishmash-io-client-python/issues',
         'Documentation': 'https://mishmash.io',
         'Source Code': 'https://github.com/mishmash-io/mishmash-io-client-python/',
     },
-    py_modules=[NAME],
-    install_requires=INSTALL_REQUIREMENTS,
-    extras_require={
-        'dev': [
-            'pytest',
-        ]
-    },
-    setup_requires=[
-        'wheel',
-    ],
     include_package_data=True,
     license='Apache License v2.0',
     classifiers=[
@@ -88,7 +65,30 @@ setup(
         'Topic :: Software Development :: Libraries'
     ],
     keywords='database, artificial intelligence, development',
+    python_requires='>=3.6, <4',
 
     package_dir = {'': 'src'},
-    packages = ["", "net"]
+    packages = ["", "net"],
+
+    install_requires=[
+        'mishmash-io-rpc>=0.0.5',
+        'async-timeout'
+    ],
+    extras_require={
+        'dev': [
+            'pytest',
+        ],
+        'jwt': [
+            'mishmash-io-auth-jwt>=0.0.2'
+        ],
+        'aws': [
+            'mishmash-io-auth-aws>=0.0.2'
+        ],
+        'google': [
+            'mishmash-io-auth-google>=0.0.2'
+        ],
+        'azure': [
+            'mishmash-io-auth-azure>=0.0.2'
+        ]
+    }
 )

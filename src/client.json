@@ -1,9 +1,0 @@
-{
-    "MISHMASHIO_AUTH_METHOD": "sdada",
-    "MISHMASHIO_AUTH_APP_ID": "fake_token",
-    "MISHMASHIO_SERVERS": [
-             "test-01.mishmash.io:443"
-     ],
-    "MISHMASHIO_USE_SSL": "true"
-}
-

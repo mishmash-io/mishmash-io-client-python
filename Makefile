@@ -12,17 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pytest
+.PHONY: py-clean-pyc py-clean-build py-clean
 
-from MishmashOp import MishmashOp
+py-clean: py-clean-build py-clean-pyc 
 
-def test_get_op_id():
-    assert MishmashOp.getOpId("__avg"), "avg"
-    assert MishmashOp.getOpId("__coalesce"), "coalesce"
-    assert MishmashOp.getOpId("__asd") == None
-    assert MishmashOp.getOpId("_asd") == None
-    assert MishmashOp.getOpId("asd") == None
-    assert MishmashOp.getOpId("") == None
-    assert MishmashOp.getOpId("__avg1") == None
-    assert MishmashOp.getOpId("_avg") == None
-    assert MishmashOp.getOpId("___avg") == None
+py-clean-build:
+	rm -fr .eggs/
+	rm -fr build/*
+	rm -fr dist/*
+	find . -name '*.egg-info' -exec rm -fr {} +
+	find . -name '*.egg' -exec rm -f {} +
+	find . -name '*.whl' -exec rm -f {} +
+
+py-clean-pyc:
+	find . -name '*.pyc' -exec rm -f {} +
+	find . -name '*.pyo' -exec rm -f {} +
+	find . -name '__pycache__' -exec rm -fr {} +
